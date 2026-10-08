@@ -16,6 +16,10 @@ AFTERGLOW combines original ambient sound with animated artwork and a simple mix
 
 The GitHub repository is named **AfterFlow**; the application’s brand is **AFTERGLOW**.
 
+## Visual direction
+
+Edition 02 uses a warm editorial palette, a sculpted CSS record motif, distinct room illustrations, tactile mixing controls, and consistent surfaces across accounts, library and plans. All artwork is drawn with CSS; no image asset downloads are required. Motion respects the reduced-motion setting.
+
 ## The experience
 
 - **Four free rooms:** Midnight Drive, Rainy Window, Deep Focus, and Golden Hour.
@@ -79,6 +83,7 @@ These commands validate and build the project; they do not start a local develop
 src/
   index.html              Studio layout, artwork, audio engine, and routing
   product.js              Accounts, custom mixes, plans, history, and help
+  design.css              Edition 02 visual system and responsive artwork
 worker/
   index.js                API, ownership checks, billing, and page delivery
 drizzle/

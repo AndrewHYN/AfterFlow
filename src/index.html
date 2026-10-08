@@ -496,14 +496,16 @@ function Home(){
  const last=MOODS[store.get('last','')]?store.get('last'):'midnight-drive';
  app.innerHTML=
  '<section class="hero">'+
-  '<div class="hero-art" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="ring"></div></div>'+
+  '<div class="hero-art" aria-hidden="true"><div class="record-object"><div class="record-label"><span>AFTERGLOW</span><b>Stay a while.</b></div></div><div class="record-caption"><span>Original atmospheres</span><span>Sound × light × a little space</span></div></div>'+
   '<p class="kicker reveal">An interactive atmosphere studio</p>'+
-  '<h1 class="display reveal">EVERY FEELING<br>HAS A <em>sound.</em></h1>'+
+  '<h1 class="display reveal">Every feeling<br>has a <em>sound.</em></h1>'+
+  '<p class="hero-description reveal">A room for your state of mind. Original ambient sound, layered by you. Let the outside world wait.</p>'+
   '<div class="hero-cta reveal">'+
    '<a class="btn primary" href="#/studio/'+last+'">Enter the Studio</a>'+
    '<a class="btn ghost" href="#/explore">Explore Moods</a>'+
   '</div>'+
-  '<p class="hero-scroll reveal">Four free rooms · original ambient sound · your quiet ritual</p>'+
+  '<p class="hero-scroll reveal">Four free rooms. No pressure. Just yours.</p>'+
+  '<a class="now-room" href="#/studio/'+last+'"><span class="mini-art" aria-hidden="true"></span><div><small>Your next quiet moment</small><strong>'+MOODS[last].name+'</strong></div><span class="room-arrow" aria-hidden="true">↗</span></a>'+
  '</section>'+
  '<section class="section">'+
   '<div class="section-head reveal"><h2 class="display">Choose your <em>atmosphere</em></h2><p class="section-note">Four distinct rooms, each with its own soundscape</p></div>'+
