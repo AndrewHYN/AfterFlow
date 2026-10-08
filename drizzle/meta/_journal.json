@@ -1,1 +1,20 @@
-{"version":"7","dialect":"sqlite","entries":[{"idx":0,"version":"6","when":1791441900000,"tag":"0000_afterglow","breakpoints":true}]}
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791441900000,
+      "tag": "0000_afterglow",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791456000000,
+      "tag": "0001_usage_counts",
+      "breakpoints": true
+    }
+  ]
+}

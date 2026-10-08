@@ -22,6 +22,8 @@ Edition 03 keeps the warm editorial palette and adds layered room postcards, res
 
 ## The experience
 
+- **One-tap rituals:** Study for 25 minutes, Wind down for 15 minutes, and Rain without music.
+- **Return quickly:** continue the last played room or listen to a saved cloud mix from the homepage.
 - **Four free rooms:** Midnight Drive, Rainy Window, Deep Focus, and Golden Hour.
 - **Layered sound:** independently control three original synthesized textures in each room.
 - **Focus timers:** choose 5–90 minutes, with a gentle fade when the session ends.
@@ -83,11 +85,12 @@ These commands validate and build the project; they do not start a local develop
 src/
   index.html              Studio layout, artwork, audio engine, and routing
   product.js              Accounts, custom mixes, plans, history, and help
-  design.css              Edition 03 visual system and responsive artwork
+  design.css              Editorial design, responsive artwork, and motion
 worker/
   index.js                API, ownership checks, billing, and page delivery
 drizzle/
   0000_afterglow.sql       Initial cloud database schema
+  0001_usage_counts.sql    Optional aggregate usage and deduplication
   meta/_journal.json      Migration journal
 scripts/
   build.mjs               Embed the frontend and package migrations
@@ -95,7 +98,9 @@ scripts/
   validate-artifact.mjs    Verify the Worker module
 tests/
   audio.test.mjs           Audio startup, cleanup, and timer tests
-  product.test.mjs         Ownership, billing, and data tests
+  product.test.mjs         Ownership, billing, usage, and data tests
+  gallery.test.mjs         Swipe, scroll, cancellation, and deck tests
+  rituals.test.mjs         Presets, gesture startup, and analytics consent tests
 ```
 
 ## Hosting and authentication
@@ -122,7 +127,7 @@ The disabled Stripe adapter implements:
 
 Checkout return URLs and client-supplied flags never grant Plus. The server grants access only from verified provider state.
 
-Before any paid launch, complete merchant setup, support contact and operator information, applicable tax configuration, and sandbox verification of checkout, renewals, failed payments, cancellation, duplicate events, and expiry. Stripe merchant eligibility is not established for this project; the intended Linkwa integration remains outstanding. Do not substitute one-off payment links for auto-renewing subscriptions without explaining the renewal model to users.
+Before any paid launch, complete merchant setup, support contact and operator information, applicable tax configuration, and sandbox verification of checkout, renewals, failed payments, cancellation, duplicate events, and expiry. Stripe merchant eligibility is not established for this project. Linkwa is the requested provider, but its [current FAQ](https://linkwa.co.zw/faqs) states that recurring payments are not supported. A Linkwa offering would therefore require explicitly renewed fixed-duration membership passes, not automatic subscriptions. Access to the existing BidBlitz environment secrets is currently denied by Vercel (403), so no Linkwa credentials were copied and no payment adapter was activated. Do not substitute one-off payment links for auto-renewing subscriptions without explaining the renewal model to users.
 
 ## Data ownership
 
@@ -132,9 +137,17 @@ Device favourites and sound preferences use browser local storage. Cloud exports
 
 Session history is client-reported and intended for personal reflection, not certified usage measurement. Views return at most 500 sessions; individual sessions are capped at six hours.
 
+## Usage insights
+
+Measurement is optional and off by default. The homepage and Privacy page provide the choice. Do Not Track and Global Privacy Control suppress events even when the choice is enabled. No third-party analytics scripts run.
+
+The client reports visit days, return days, listening starts, preset selections, listening seconds and successful mix saves. The server validates the allowed signals and aggregates by UTC day, room and preset. Random one-event receipt IDs deduplicate delivery; counts and receipts expire after 90 days on subsequent event ingestion. They contain no account ID, email or IP address. Counts are directional, client-reported signals rather than audited figures, and visit days are per device rather than unique people.
+
+`/#/insights` shows the last 30 days. `ANALYTICS_ADMIN_USER_ID` must contain the owner’s trusted **site-specific** user ID; it was configured from the sole live user whose email matched the Site owner. The backend rejects anonymous users and other accounts, and Account exposes the link only to that configured owner. Changing the site audience does not relax this authorization.
+
 ## Verification
 
-**41 automated tests passed** in the current release:
+**53 automated tests passed** in the current release:
 
 - Audio sources start once and stop cleanly.
 - Old timer callbacks cannot stop a newly started session.
@@ -152,11 +165,12 @@ Build, embedded JavaScript syntax, and Worker artifact checks also pass. The dep
 
 The homepage postcards gently wiggle twice to invite interaction, then settle. Swipe the front card left or right to cycle through all four free rooms; tapping opens the current room. Arrow buttons and keyboard arrow keys provide the same navigation. Vertical touch scrolling remains native, real drags suppress link activation, and reduced-motion preferences disable decorative motion. Buttons respond to presses and the studio play ring breathes during playback.
 
-## Next release
+## Launch readiness
 
-1. Connect the authorized Linkwa credentials securely.
-2. Verify Linkwa’s renewal capabilities and implement the supported membership model.
-3. Test the complete hosted sign-in, mixing, library, and billing experience.
-4. Supply merchant/support details and open public access when ready.
+1. Restore authorized access to the existing Linkwa secrets; no repeated unchanged retry or credential substitution.
+2. Implement and sandbox-test explicitly renewed membership passes, including amount/currency checks, signed events, server-side payment verification, idempotent grants and expiry. Automatic renewal is unavailable on Linkwa today.
+3. Complete real Android and desktop browser checks of one-tap audio, account sign-in, saving and replaying cloud mixes. The managed environment has no supported browser QA capability; browser/device verification remains pending.
+4. Supply merchant/support details and final membership terms, then explicitly authorize a public launch. The current site remains private to its owner.
+5. Promote the free study/rain rituals first and use opt-in return/listening signals to decide what to improve.
 
 Built by Andrew Hama Mutamiri.

@@ -414,9 +414,9 @@ const AE={
  pause(fast){clearTimeout(this.finishId);this.finishId=null;if(!this.playing&&fast)return;this.playing=false;this.clearTimer();this.stopLayers(fast);this.tick&&this.tick(0);this.onstop&&this.onstop();},
  setVol(v){v=Math.min(1,Math.max(0,v));store.set('vol',v);
   if(this.master)this.master.gain.linearRampToValueAtTime(v,this.ctx.currentTime+.08)},
- setLayer(id,on,vol){
-  const p=store.get('layers:'+this.mood,{});p[id]={on,vol};store.set('layers:'+this.mood,p);
-  const L=this.live[id];if(!L||!this.ctx)return;L.on=on;L.vol=vol;
+ setLayer(id,on,vol,mood=this.mood){
+  const p=store.get('layers:'+mood,{});p[id]={on,vol};store.set('layers:'+mood,p);
+  const L=this.live[id];if(mood!==this.mood||!L||!this.ctx)return;L.on=on;L.vol=vol;
   const t=this.ctx.currentTime;L.input.gain.cancelScheduledValues(t);L.input.gain.setValueAtTime(Math.max(0,L.input.gain.value),t);
   if(this.playing)L.input.gain.linearRampToValueAtTime(on?vol:0,t+.35);
  },
@@ -493,7 +493,8 @@ function startViz(accent){
 /* ---------- PAGES ---------- */
 function Home(){
  setActiveNav('');
- const last=MOODS[store.get('last','')]?store.get('last'):'midnight-drive';
+ const previous=store.get('lastPlayed','');
+ const last=MOODS[previous]&&(!TEASERS.some(t=>t[0]===previous)||cloud.plus)?previous:'midnight-drive';
  app.innerHTML=
  '<section class="hero">'+
   '<div class="hero-art" aria-hidden="true"><div class="record-object"><div class="record-label"><span>AFTERGLOW</span><b>Stay a while.</b></div></div><div class="record-caption"><span>Original atmospheres</span><span>Sound × light × a little space</span></div></div>'+heroGallery(last)+
@@ -501,12 +502,12 @@ function Home(){
   '<h1 class="display reveal">Every feeling<br>has a <em>sound.</em></h1>'+
   '<p class="hero-description reveal">A room for your state of mind. Original ambient sound, layered by you. Let the outside world wait.</p>'+
   '<div class="hero-cta reveal">'+
-   '<a class="btn primary" href="#/studio/'+last+'">Enter the Studio</a>'+
+   '<button class="btn primary" data-listen-room="'+last+'">'+(previous===last?'Continue '+MOODS[last].name:'Start listening')+'</button>'+
    '<a class="btn ghost" href="#/explore">Explore Moods</a>'+
   '</div>'+
   '<p class="hero-scroll reveal">Four free rooms. No pressure. Just yours.</p>'+
   '<a class="now-room" href="#/studio/'+last+'"><span class="mini-art" aria-hidden="true"></span><div><small>Your next quiet moment</small><strong>'+MOODS[last].name+'</strong></div><span class="room-arrow" aria-hidden="true">↗</span></a>'+
- '</section>'+
+ '</section>'+quickStartSection()+
  '<section class="section">'+
   '<div class="section-head reveal"><h2 class="display">Choose your <em>atmosphere</em></h2><p class="section-note">Four distinct rooms, each with its own soundscape</p></div>'+
   '<div class="mood-grid">'+MOOD_ORDER.map(slug=>{const m=MOODS[slug];return ''+
@@ -518,7 +519,7 @@ function Home(){
  '<section class="section rituals"><div class="section-head"><h2 class="display">Make room for <em>you.</em></h2><a class="btn ghost" href="#/pricing">Discover Plus</a></div><div class="feature-grid"><article><span class="eyebrow">01 / Settle in</span><h3>Find your room.</h3><p>Four free atmospheres for the moments between work, study and the rest of your day.</p></article><article><span class="eyebrow">02 / Make it yours</span><h3>Shape the sound.</h3><p>Mix three independent layers. Keep the rain, soften the hum, turn the world down.</p></article><article><span class="eyebrow">03 / Return to quiet</span><h3>Keep your ritual.</h3><p>Sign in to save three custom mixes across devices and see your week in sound.</p></article></div></section>'+
  '<section class="statement reveal"><p>AFTERGLOW is a small room on the internet where <strong>sound and light</strong> slow everything down. Pick a mood. Press play. Stay a while.</p></section>'+
  FOOT;
- revealInit();wireGallery();
+ revealInit();wireGallery();wireQuickStarts();updateHomeMixes();wireAnalyticsChoice();
 }
 function Explore(){
  setActiveNav('explore');
@@ -623,6 +624,7 @@ function wireStudio(slug,m){
   if(on)startViz(m.accent);
   state.textContent=on?'Playing \u2014 '+m.name:'Paused';
  }
+ if(AE.playing&&AE.mood===slug)setPlayingUI(true);
  AE.onstop=()=>setPlayingUI(false);
  playbtn.addEventListener('click',()=>{
   if(AE.playing){AE.pause();setPlayingUI(false)}
@@ -634,11 +636,11 @@ function wireStudio(slug,m){
   const id=b.dataset.layer,on=b.getAttribute('aria-pressed')!=='true';
   const slider=app.querySelector('[data-vol="'+id+'"]');
   b.setAttribute('aria-pressed',on);b.textContent=on?'On':'Off';
-  AE.setLayer(id,on,slider.value/100);
+  AE.setLayer(id,on,slider.value/100,slug);
  }));
  app.querySelectorAll('[data-vol]').forEach(s=>s.addEventListener('input',()=>{
   const id=s.dataset.vol,b=app.querySelector('[data-layer="'+id+'"]');
-  AE.setLayer(id,b.getAttribute('aria-pressed')==='true',s.value/100);
+  AE.setLayer(id,b.getAttribute('aria-pressed')==='true',s.value/100,slug);
  }));
  app.querySelectorAll('[data-min]').forEach(c=>c.addEventListener('click',()=>{
   const min=+c.dataset.min;
@@ -684,6 +686,7 @@ function route(){
  if(parts[0]==='studio'&&parts[1]){if(TEASERS.some(t=>t[0]===parts[1])&&!cloud.plus){if(cloudLoading){app.innerHTML='<section class="empty"><h2>Opening your room…</h2></section>'}else Pricing();return}if(MOODS[parts[1]]){Studio(parts[1]);return}NotFound();return}
  if(parts[0]==='pricing'){Pricing();return}
  if(parts[0]==='account'){Account();return}
+ if(parts[0]==='insights'){Insights();return}
  if(parts[0]==='help'||parts[0]==='privacy'||parts[0]==='terms'){Info(parts[0]);return}
  if(parts[0]==='explore'){Explore();return}
  if(parts[0]==='saved'){Library();return}

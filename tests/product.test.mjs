@@ -3,7 +3,7 @@ import worker,{hasPlus,cleanMix,verifySignature} from '../worker/index.js';
 let sqlite,env;
 beforeEach(()=>{
  sqlite=new DatabaseSync(':memory:');
- sqlite.exec(readFileSync(new URL('../drizzle/0000_afterglow.sql',import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+ for(const file of ['0000_afterglow.sql','0001_usage_counts.sql'])sqlite.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
  const DB={
   prepare(sql){return {bind(...args){return {
    async first(){return sqlite.prepare(sql).get(...args)||null},
@@ -58,3 +58,10 @@ test('late active webhook cannot restore canceled access',async()=>{await billin
 test('webhook redelivery has no duplicate ledger entry',async()=>{await billingUser();const e=event('evt_same','customer.subscription.updated',providerSub('active'));for(let i=0;i<2;i++)assert.equal((await billEvent(e,providerSub('active'))).status,200);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM billing_events').get().n,1)});
 test('billing return query never grants Plus',async()=>{await user();assert.equal((await(await send('/api/me?checkout=success&plus=true')).json()).plus,false)});
 test('security headers and real not found responses',async()=>{const response=await send('/');assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.ok(response.headers.get('content-security-policy').includes("object-src 'none'"));assert.equal((await send('/missing')).status,404)});
+const usage=(event='play',extra={})=>({id:crypto.randomUUID(),event,mood:'deep-focus',seconds:0,...extra});
+test('optional anonymous usage aggregates without creating an account',async()=>{const response=await send('/api/events','POST',usage(),null);assert.equal(response.status,200);assert.equal(sqlite.prepare('SELECT count FROM usage_counts').get().count,1);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM users').get().n,0)});
+test('usage event retries count once',async()=>{const data=usage('listen',{seconds:75});for(let i=0;i<2;i++)assert.equal((await send('/api/events','POST',data,null)).status,200);assert.equal(sqlite.prepare('SELECT count,seconds FROM usage_counts').get().seconds,75);assert.equal(sqlite.prepare('SELECT count FROM usage_counts').get().count,1)});
+test('usage rejects arbitrary event names, invalid rooms and excessive durations',async()=>{for(const data of [usage('arbitrary'),usage('listen',{seconds:21601}),usage('play',{mood:'unknown'}),usage('preset',{preset:'unknown'}),usage('play',{seconds:10})])assert.equal((await send('/api/events','POST',data,null)).status,400)});
+test('usage enforces origin and content type on anonymous writes',async()=>{assert.equal((await send('/api/events','POST',usage(),null,{Origin:'https://bad.example'})).status,403);assert.equal((await send('/api/events','POST',usage(),null,{'Content-Type':'text/plain'})).status,415)});
+test('owner insights reject anonymous and other signed-in users',async()=>{env.ANALYTICS_ADMIN_USER_ID='alice';assert.equal((await send('/api/insights','GET',undefined,null)).status,401);assert.equal((await send('/api/insights','GET',undefined,'bob')).status,403);assert.equal((await send('/api/insights')).status,200);assert.equal((await(await send('/api/me')).json()).canViewInsights,true)});
+test('usage retention removes expired aggregate rows and event receipts',async()=>{sqlite.prepare('INSERT INTO usage_counts VALUES(?,?,?,?,?,?)').run('2020-01-01','visit','','',1,0);sqlite.prepare('INSERT INTO usage_receipts VALUES(?,?)').run('old','2020-01-01');await send('/api/events','POST',usage(),null);assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_counts WHERE day='2020-01-01'").get().n,0);assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_receipts WHERE id='old'").get().n,0)});

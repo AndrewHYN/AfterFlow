@@ -74,16 +74,40 @@ async function webhook(request,env){
  await env.DB.prepare('INSERT OR IGNORE INTO billing_events(id,created_at) VALUES(?,?)').bind(event.id,Date.now()).run();
  return json({received:true});
 }
+export function cleanEvent(data){
+ if(!data||typeof data!=='object'||!/^[-\w]{36}$/.test(data.id||'')||!['visit','return','play','preset','listen','mix_saved'].includes(data.event))throw new HttpError(400,'Invalid usage event.');
+ const mood=data.mood||'',preset=data.preset||'',seconds=data.seconds||0;
+ if(mood&&!ALL_MOODS.includes(mood)||preset&&!['study','unwind','rain'].includes(preset)||!Number.isInteger(seconds)||seconds<0||seconds>21600)throw new HttpError(400,'Invalid usage event.');
+ if(['play','preset','listen','mix_saved'].includes(data.event)&&!mood||data.event==='preset'&&!preset||data.event==='listen'&&seconds<10||data.event!=='listen'&&seconds!==0)throw new HttpError(400,'Invalid usage event.');
+ return {id:data.id,event:data.event,mood,preset,seconds};
+}
+async function usageEvent(request,env){
+ if(!env.DB)throw new HttpError(503,'Usage counts are unavailable.');
+ const data=cleanEvent(await bodyFor(request)),day=new Date().toISOString().slice(0,10),cutoff=new Date(Date.now()-90*86400000).toISOString().slice(0,10);
+ // Aggregate before inserting the receipt, atomically. Retried event IDs count once.
+ await env.DB.batch([
+ env.DB.prepare('INSERT INTO usage_counts(day,event,mood,preset,count,seconds) SELECT ?,?,?,?,1,? WHERE NOT EXISTS(SELECT 1 FROM usage_receipts WHERE id=?) ON CONFLICT(day,event,mood,preset) DO UPDATE SET count=count+1,seconds=seconds+excluded.seconds').bind(day,data.event,data.mood,data.preset,data.seconds,data.id),
+ env.DB.prepare('INSERT OR IGNORE INTO usage_receipts(id,day) VALUES(?,?)').bind(data.id,day),
+ env.DB.prepare('DELETE FROM usage_receipts WHERE day<?').bind(cutoff),
+ env.DB.prepare('DELETE FROM usage_counts WHERE day<?').bind(cutoff)
+ ]);return json({ok:true});
+}
 export async function api(request,env){
  const url=new URL(request.url),path=url.pathname;
  if(path==='/api/billing/webhook'&&request.method==='POST')return webhook(request,env);
  if(!['GET','POST','DELETE'].includes(request.method))throw new HttpError(405,'Method not allowed.');
  if(request.method!=='GET')writeGuard(request);
+ if(path==='/api/events'&&request.method==='POST')return usageEvent(request,env);
+ if(path==='/api/insights'&&request.method==='GET'){
+ const identity=requireIdentity(request);if(!env.ANALYTICS_ADMIN_USER_ID||identity.id!==env.ANALYTICS_ADMIN_USER_ID)throw new HttpError(403,'Usage insights are available only to the configured site owner.');
+ const cutoff=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+ const data=await env.DB.prepare('SELECT event,mood,preset,SUM(count) AS count,SUM(seconds) AS seconds FROM usage_counts WHERE day>=? GROUP BY event,mood,preset ORDER BY count DESC').bind(cutoff).all();return json({rows:data.results});
+ }
  if(path==='/api/health'&&request.method==='GET')return json({ok:true,version:'1.0.0'});
  if(path==='/api/me'&&request.method==='GET'){
  const id=request.headers.get('oai-authenticated-user-id');if(!id)return json({user:null,plus:false,billingReady:billingReady(env),rooms:{}});
  const user=await userFor(request,env),sub=await subscription(env,user.id),plus=hasPlus(sub,env);
- return json({user,plus,billingReady:billingReady(env),subscription:sub?{status:sub.status,periodEnd:sub.period_end,cancelAtPeriodEnd:!!sub.cancel_at_period_end}:null,rooms:plus?PLUS_MOODS:{}});
+ return json({user,plus,billingReady:billingReady(env),subscription:sub?{status:sub.status,periodEnd:sub.period_end,cancelAtPeriodEnd:!!sub.cancel_at_period_end}:null,rooms:plus?PLUS_MOODS:{},canViewInsights:!!env.ANALYTICS_ADMIN_USER_ID&&user.id===env.ANALYTICS_ADMIN_USER_ID});
  }
  const user=await userFor(request,env),sub=await subscription(env,user.id),plus=hasPlus(sub,env);
  if(path==='/api/mixes'&&request.method==='GET'){
