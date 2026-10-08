@@ -422,7 +422,7 @@ const AE={
  },
  clearTimer(){clearInterval(this.timerId);this.timerId=null;this.endsAt=0},
  setTimer(min){
-  this.clearTimer();this.endsAt=0;if(!min){this.tick&&this.tick(0);return}
+  this.clearTimer();this.timerDuration=min*60000;this.endsAt=0;if(!min){this.tick&&this.tick(0);return}
   this.endsAt=Date.now()+min*60000;
   this.timerId=setInterval(()=>{const r=this.endsAt-Date.now();
    if(r<=0)this.finishTimer();else this.tick&&this.tick(r)},250);
@@ -496,7 +496,7 @@ function Home(){
  const last=MOODS[store.get('last','')]?store.get('last'):'midnight-drive';
  app.innerHTML=
  '<section class="hero">'+
-  '<div class="hero-art" aria-hidden="true"><div class="record-object"><div class="record-label"><span>AFTERGLOW</span><b>Stay a while.</b></div></div><div class="record-caption"><span>Original atmospheres</span><span>Sound × light × a little space</span></div></div>'+
+  '<div class="hero-art" aria-hidden="true"><div class="record-object"><div class="record-label"><span>AFTERGLOW</span><b>Stay a while.</b></div></div><div class="record-caption"><span>Original atmospheres</span><span>Sound × light × a little space</span></div></div>'+heroGallery(last)+
   '<p class="kicker reveal">An interactive atmosphere studio</p>'+
   '<h1 class="display reveal">Every feeling<br>has a <em>sound.</em></h1>'+
   '<p class="hero-description reveal">A room for your state of mind. Original ambient sound, layered by you. Let the outside world wait.</p>'+
@@ -510,7 +510,7 @@ function Home(){
  '<section class="section">'+
   '<div class="section-head reveal"><h2 class="display">Choose your <em>atmosphere</em></h2><p class="section-note">Four distinct rooms, each with its own soundscape</p></div>'+
   '<div class="mood-grid">'+MOOD_ORDER.map(slug=>{const m=MOODS[slug];return ''+
-   '<a class="mood-card reveal" href="#/studio/'+slug+'">'+
+   '<a class="mood-card reveal tilt-card" href="#/studio/'+slug+'">'+
     '<div class="art"><div class="'+m.art+'"></div></div>'+
     '<span class="num">MOOD '+m.n+'</span><h3>'+m.name+'</h3><p>'+m.desc+'</p>'+
     '<span class="go">Enter room &#8594;</span></a>'}).join('')+
@@ -616,6 +616,7 @@ function Studio(slug){
 function wireStudio(slug,m){
  const playbtn=$('#playbtn'),state=$('#playstate');
  function setPlayingUI(on){
+  app.querySelector('.stage')?.setAttribute('data-playing',String(on));
   playbtn.classList.toggle('playing',on);
   playbtn.innerHTML=on?ICON.pause:ICON.play;
   playbtn.setAttribute('aria-label',(on?'Pause ':'Play ')+m.name+' atmosphere');
@@ -626,7 +627,8 @@ function wireStudio(slug,m){
   if(AE.playing){AE.pause();setPlayingUI(false)}
   else{try{AE.play(slug);setPlayingUI(true);startViz(m.accent)}catch(e){toast('Audio unavailable in this browser')}}
  });
- $('#master').addEventListener('input',e=>AE.setVol(e.target.value/100));
+ $('.stage').style.setProperty('--mix-volume',String(store.get('vol',.8)));
+ $('#master').addEventListener('input',e=>{AE.setVol(e.target.value/100);$('.stage').style.setProperty('--mix-volume',String(e.target.value/100))});
  app.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{
   const id=b.dataset.layer,on=b.getAttribute('aria-pressed')!=='true';
   const slider=app.querySelector('[data-vol="'+id+'"]');
@@ -644,6 +646,7 @@ function wireStudio(slug,m){
   if(!AE.playing&&min>0)return;AE.setTimer(min);
  }));
  AE.tick=function(rem){
+  playbtn.style.setProperty('--session-progress',rem>0&&AE.timerDuration?Math.max(0,Math.min(100,(1-rem/AE.timerDuration)*100))+'%':'0%');
   const tl=$('#timeleft');if(!tl)return;
   if(rem>0){tl.innerHTML=fmt(rem)+'<small>Remaining &mdash; fades out at zero</small>'}
   else {tl.innerHTML='<small>No timer</small>';app.querySelectorAll('[data-min]').forEach(c=>{const on=c.dataset.min==='0';c.classList.toggle('on',on);c.setAttribute('aria-pressed',on)})}

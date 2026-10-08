@@ -71,3 +71,21 @@ function Info(type){
  };
  setActiveNav('');const [title,body]=content[type];app.innerHTML='<section class="page info-content"><span class="eyebrow">AFTERGLOW / '+type+'</span><h1>'+title+'</h1>'+body+'<a class="btn ghost" href="#/">Return to the studio</a></section>'+FOOT;
 }
+
+/* Motion edition: room postcards with restrained, input-driven depth. */
+function heroGallery(last){
+ const picks=[...new Set(['golden-hour','rainy-window',last,...FREE_ROOMS])].slice(0,3);
+ return '<div class="hero-gallery" aria-label="Preview atmosphere rooms"><div class="gallery-orbit" aria-hidden="true"></div><div class="gallery-stack">'+picks.map((slug,i)=>{const m=MOODS[slug];return '<a class="gallery-card tilt-card gallery-card-'+i+'" href="#/studio/'+slug+'" aria-label="Open '+m.name+'"><div class="postcard-art '+m.art+'" aria-hidden="true"><span class="postcard-light"></span><span class="postcard-frame"></span></div><div class="postcard-bottom"><span><small>AFTERGLOW / '+m.n+'</small><strong>'+m.name+'</strong></span><span class="postcard-arrow" aria-hidden="true">↗</span></div></a>'}).join('')+'</div><div class="gallery-caption"><span class="gallery-dot" aria-hidden="true"></span><span>Pick a feeling. Step inside.</span><span class="gallery-index" aria-hidden="true">01 — 04</span></div></div>';
+}
+let motionFrame=0,lastTilt=null;
+const motionAllowed=()=>matchMedia('(hover: hover) and (pointer: fine)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+function resetTilt(card){if(!card)return;card.style.removeProperty('--tilt-x');card.style.removeProperty('--tilt-y');card.style.removeProperty('--glow-x');card.style.removeProperty('--glow-y');}
+document.addEventListener('pointermove',event=>{
+ if(!motionAllowed())return;
+ const card=event.target.closest('.tilt-card');if(lastTilt&&lastTilt!==card)resetTilt(lastTilt);lastTilt=card;
+ if(!card)return;cancelAnimationFrame(motionFrame);
+ const x=event.clientX,y=event.clientY;
+ motionFrame=requestAnimationFrame(()=>{if(!card.isConnected)return;const r=card.getBoundingClientRect();const px=Math.max(0,Math.min(1,(x-r.left)/r.width)),py=Math.max(0,Math.min(1,(y-r.top)/r.height));card.style.setProperty('--tilt-x',((.5-py)*7).toFixed(2)+'deg');card.style.setProperty('--tilt-y',((px-.5)*7).toFixed(2)+'deg');card.style.setProperty('--glow-x',(px*100).toFixed(1)+'%');card.style.setProperty('--glow-y',(py*100).toFixed(1)+'%');});
+},{passive:true});
+document.addEventListener('pointerout',event=>{const card=event.target.closest('.tilt-card');if(card&&!card.contains(event.relatedTarget)){cancelAnimationFrame(motionFrame);resetTilt(card);if(lastTilt===card)lastTilt=null}},{passive:true});
+addEventListener('hashchange',()=>{cancelAnimationFrame(motionFrame);resetTilt(lastTilt);lastTilt=null});

@@ -18,7 +18,7 @@ The GitHub repository is named **AfterFlow**; the application’s brand is **AFT
 
 ## Visual direction
 
-Edition 02 uses a warm editorial palette, a sculpted CSS record motif, distinct room illustrations, tactile mixing controls, and consistent surfaces across accounts, library and plans. All artwork is drawn with CSS; no image asset downloads are required. Motion respects the reduced-motion setting.
+Edition 03 keeps the warm editorial palette and adds layered room postcards, restrained pointer-driven perspective, soft surface highlights, a timer progress ring, and playback-responsive studio lighting. The reel reference informed the depth and animation direction; the implementation uses original CSS and JavaScript. All artwork is drawn with CSS; no image asset downloads are required. Motion respects the reduced-motion setting.
 
 ## The experience
 
@@ -83,7 +83,7 @@ These commands validate and build the project; they do not start a local develop
 src/
   index.html              Studio layout, artwork, audio engine, and routing
   product.js              Accounts, custom mixes, plans, history, and help
-  design.css              Edition 02 visual system and responsive artwork
+  design.css              Edition 03 visual system and responsive artwork
 worker/
   index.js                API, ownership checks, billing, and page delivery
 drizzle/
