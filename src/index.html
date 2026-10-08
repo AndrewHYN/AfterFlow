@@ -518,7 +518,7 @@ function Home(){
  '<section class="section rituals"><div class="section-head"><h2 class="display">Make room for <em>you.</em></h2><a class="btn ghost" href="#/pricing">Discover Plus</a></div><div class="feature-grid"><article><span class="eyebrow">01 / Settle in</span><h3>Find your room.</h3><p>Four free atmospheres for the moments between work, study and the rest of your day.</p></article><article><span class="eyebrow">02 / Make it yours</span><h3>Shape the sound.</h3><p>Mix three independent layers. Keep the rain, soften the hum, turn the world down.</p></article><article><span class="eyebrow">03 / Return to quiet</span><h3>Keep your ritual.</h3><p>Sign in to save three custom mixes across devices and see your week in sound.</p></article></div></section>'+
  '<section class="statement reveal"><p>AFTERGLOW is a small room on the internet where <strong>sound and light</strong> slow everything down. Pick a mood. Press play. Stay a while.</p></section>'+
  FOOT;
- revealInit();
+ revealInit();wireGallery();
 }
 function Explore(){
  setActiveNav('explore');
@@ -620,12 +620,13 @@ function wireStudio(slug,m){
   playbtn.classList.toggle('playing',on);
   playbtn.innerHTML=on?ICON.pause:ICON.play;
   playbtn.setAttribute('aria-label',(on?'Pause ':'Play ')+m.name+' atmosphere');
+  if(on)startViz(m.accent);
   state.textContent=on?'Playing \u2014 '+m.name:'Paused';
  }
  AE.onstop=()=>setPlayingUI(false);
  playbtn.addEventListener('click',()=>{
   if(AE.playing){AE.pause();setPlayingUI(false)}
-  else{try{AE.play(slug);setPlayingUI(true);startViz(m.accent)}catch(e){toast('Audio unavailable in this browser')}}
+  else{try{AE.play(slug);setPlayingUI(true)}catch(e){toast('Audio unavailable in this browser')}}
  });
  $('.stage').style.setProperty('--mix-volume',String(store.get('vol',.8)));
  $('#master').addEventListener('input',e=>{AE.setVol(e.target.value/100);$('.stage').style.setProperty('--mix-volume',String(e.target.value/100))});

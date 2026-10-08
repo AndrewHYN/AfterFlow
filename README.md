@@ -134,7 +134,7 @@ Session history is client-reported and intended for personal reflection, not cer
 
 ## Verification
 
-**36 automated tests passed** in the initial release:
+**41 automated tests passed** in the current release:
 
 - Audio sources start once and stop cleanly.
 - Old timer callbacks cannot stop a newly started session.
@@ -147,6 +147,10 @@ Session history is client-reported and intended for personal reflection, not cer
 Build, embedded JavaScript syntax, and Worker artifact checks also pass. The deployed D1 schema was confirmed to contain `users`, `mixes`, `sessions`, `subscriptions`, and `billing_events`.
 
 **Verification limits:** desktop/mobile visual QA and real hosted sign-in have not been browser-tested. No real payment-provider sandbox or live subscription has been exercised for AFTERGLOW. Mobile browsers can suspend audio when the device locks or the tab moves into the background.
+
+## Motion edition 04
+
+The homepage postcards gently wiggle twice to invite interaction, then settle. Swipe the front card left or right to cycle through all four free rooms; tapping opens the current room. Arrow buttons and keyboard arrow keys provide the same navigation. Vertical touch scrolling remains native, real drags suppress link activation, and reduced-motion preferences disable decorative motion. Buttons respond to presses and the studio play ring breathes during playback.
 
 ## Next release
 

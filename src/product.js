@@ -74,9 +74,56 @@ function Info(type){
 
 /* Motion edition: room postcards with restrained, input-driven depth. */
 function heroGallery(last){
- const picks=[...new Set(['golden-hour','rainy-window',last,...FREE_ROOMS])].slice(0,3);
- return '<div class="hero-gallery" aria-label="Preview atmosphere rooms"><div class="gallery-orbit" aria-hidden="true"></div><div class="gallery-stack">'+picks.map((slug,i)=>{const m=MOODS[slug];return '<a class="gallery-card tilt-card gallery-card-'+i+'" href="#/studio/'+slug+'" aria-label="Open '+m.name+'"><div class="postcard-art '+m.art+'" aria-hidden="true"><span class="postcard-light"></span><span class="postcard-frame"></span></div><div class="postcard-bottom"><span><small>AFTERGLOW / '+m.n+'</small><strong>'+m.name+'</strong></span><span class="postcard-arrow" aria-hidden="true">↗</span></div></a>'}).join('')+'</div><div class="gallery-caption"><span class="gallery-dot" aria-hidden="true"></span><span>Pick a feeling. Step inside.</span><span class="gallery-index" aria-hidden="true">01 — 04</span></div></div>';
+ const front=FREE_ROOMS.includes(last)?last:'midnight-drive';
+ const others=[...new Set(['golden-hour','rainy-window',...FREE_ROOMS])].filter(slug=>slug!==front);
+ const picks=[others[0],others[1],front,others[2]];
+ return '<div class="hero-gallery" aria-label="Preview atmosphere rooms"><div class="gallery-orbit" aria-hidden="true"></div><div class="gallery-stack">'+picks.map((slug,i)=>{const m=MOODS[slug];return '<a class="gallery-card gallery-card-'+i+'" data-room="'+slug+'" href="#/studio/'+slug+'" aria-label="Open '+m.name+'" tabindex="'+(i===2?'0':'-1')+'"'+(i===3?' aria-hidden="true"':'')+'><div class="postcard-art '+m.art+'" aria-hidden="true"><span class="postcard-light"></span><span class="postcard-frame"></span></div><div class="postcard-bottom"><span><small>AFTERGLOW / '+m.n+'</small><strong>'+m.name+'</strong></span><span class="postcard-arrow" aria-hidden="true">↗</span></div></a>'}).join('')+'</div><div class="gallery-caption"><button class="gallery-step" data-direction="-1" aria-label="Previous atmosphere">←</button><span class="gallery-instruction">Swipe to explore. Tap to enter.</span><button class="gallery-step" data-direction="1" aria-label="Next atmosphere">→</button><span class="gallery-status sr-only" aria-live="polite">'+MOODS[picks[2]].name+'</span></div></div>';
 }
+// Horizontal intent preserves page scrolling; cycling always retains every room.
+function galleryIntent(dx,dy){return Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.25}
+function galleryOrder(cards,direction){return direction>0?[cards[1],cards[2],cards[3],cards[0]]:[cards[3],cards[0],cards[1],cards[2]]}
+let galleryCleanup=()=>{};
+function wireGallery(){
+ galleryCleanup();
+ const gallery=document.querySelector('.hero-gallery');if(!gallery)return;
+ const stack=gallery.querySelector('.gallery-stack'),abort=new AbortController();
+ let cards=[...stack.querySelectorAll('.gallery-card')],gesture=null,suppress=false,suppressTimer;
+ const listen=(el,type,fn,extra={})=>el.addEventListener(type,fn,{signal:abort.signal,...extra});
+ const settle=()=>{for(const card of cards){card.classList.remove('dragging');card.style.removeProperty('--drag-x');card.style.removeProperty('--drag-turn')}gesture=null};
+ const move=direction=>{
+  gallery.classList.add('gallery-touched');settle();cards=galleryOrder(cards,direction);
+  cards.forEach((card,i)=>{card.className='gallery-card gallery-card-'+i;card.tabIndex=i===2?0:-1;card.setAttribute('aria-hidden',String(i===3))});
+  gallery.querySelector('.gallery-status').textContent=MOODS[cards[2].dataset.room].name;
+ };
+ listen(gallery,'pointerdown',e=>{
+  if(!e.isPrimary||e.button!==0||!e.target.closest('.gallery-card-2'))return;
+  gallery.classList.add('gallery-touched');gesture={id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,locked:false,vertical:false,card:cards[2]};
+ });
+ listen(gallery,'pointermove',e=>{
+  if(!gesture||gesture.id!==e.pointerId)return;
+  const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
+  if(!gesture.locked&&!gesture.vertical){
+   if(Math.abs(dy)>10&&Math.abs(dy)>=Math.abs(dx))gesture.vertical=true;
+   else if(galleryIntent(dx,dy)){gesture.locked=true;gesture.card.classList.add('dragging');gesture.card.setPointerCapture(e.pointerId)}
+  }
+  if(!gesture.locked)return;e.preventDefault();gesture.dx=dx;
+  gesture.card.style.setProperty('--drag-x',dx+'px');gesture.card.style.setProperty('--drag-turn',Math.max(-8,Math.min(8,dx/25))+'deg');
+ },{passive:false});
+ const finish=(e,cancelled)=>{
+  if(!gesture||gesture.id!==e.pointerId)return;
+  const current=gesture;
+  if(current.locked){suppress=true;clearTimeout(suppressTimer);suppressTimer=setTimeout(()=>suppress=false,400)}
+  const change=!cancelled&&current.locked&&Math.abs(current.dx)>Math.max(35,current.card.offsetWidth*.16);
+  if(current.card.hasPointerCapture(e.pointerId))current.card.releasePointerCapture(e.pointerId);
+  settle();if(change)move(current.dx<0?1:-1);
+ };
+ listen(gallery,'pointerup',e=>finish(e,false));listen(gallery,'pointercancel',e=>finish(e,true));
+ listen(gallery,'click',e=>{if(suppress&&e.target.closest('.gallery-card')){e.preventDefault();e.stopPropagation();suppress=false}},{capture:true});
+ gallery.querySelectorAll('.gallery-step').forEach(button=>listen(button,'click',()=>move(Number(button.dataset.direction))));
+ listen(gallery,'keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowRight'?1:-1);cards[2].focus({preventScroll:true})}});
+ galleryCleanup=()=>{abort.abort();clearTimeout(suppressTimer);settle()};
+}
+addEventListener('hashchange',()=>galleryCleanup());
 let motionFrame=0,lastTilt=null;
 const motionAllowed=()=>matchMedia('(hover: hover) and (pointer: fine)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resetTilt(card){if(!card)return;card.style.removeProperty('--tilt-x');card.style.removeProperty('--tilt-y');card.style.removeProperty('--glow-x');card.style.removeProperty('--glow-y');}
